@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#15242E">
+<title>网单账 · Ventes en ligne</title>
+<style>
+:root{
+  --ink:#15242E; --ink2:#3D5260; --paper:#F7F6F2; --card:#FFFFFF; --line:#E3E1DA;
+  --r10:#3D5260; --r20:#A8681C; --r55:#3E7A4E;
+  --acc:#1F6E63; --accSoft:#E4F0EE; --danger:#A63D2F; --closed:#8A8677;
+  --radius:14px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans SC",sans-serif;font-size:16px}
+body{padding-bottom:76px}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+header{background:var(--ink);color:#F3EFE6;padding:14px 16px 12px;position:sticky;top:0;z-index:20}
+header h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.02em}
+header .sub{font-size:12px;opacity:.65;margin-top:2px}
+main{padding:14px 14px 8px;max-width:640px;margin:0 auto}
+.tab-page{display:none}.tab-page.active{display:block}
+
+/* bottom nav */
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);
+  display:flex;z-index:30;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:10px 0 8px;font-size:12px;color:var(--ink2);cursor:pointer}
+nav button .ic{display:block;font-size:20px;line-height:1;margin-bottom:3px}
+nav button.on{color:var(--acc);font-weight:700}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.card h2{margin:0 0 10px;font-size:14px;font-weight:700;color:var(--ink2);letter-spacing:.04em}
+label{display:block;font-size:13px;color:var(--ink2);margin:10px 0 4px}
+input[type=text],input[type=date],input[type=number],textarea,select{
+  width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:17px;background:#fff;color:var(--ink)}
+input:focus,textarea:focus{outline:2px solid var(--acc);border-color:var(--acc)}
+textarea{font-size:15px;min-height:60px;resize:vertical}
+.amount{font-size:22px !important;font-weight:700;text-align:right}
+.btn{display:block;width:100%;padding:14px;border:0;border-radius:12px;font-size:17px;font-weight:700;
+  background:var(--acc);color:#fff;cursor:pointer;margin-top:12px}
+.btn:disabled{background:#B9C4C1}
+.btn.ghost{background:none;border:1.5px solid var(--acc);color:var(--acc)}
+.btn.warn{background:var(--danger)}
+.btn.small{width:auto;display:inline-block;padding:8px 14px;font-size:14px;margin:0}
+.row2{display:flex;gap:10px}.row2>*{flex:1}
+
+/* live split preview */
+.split{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px;font-size:14px}
+.split .bar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-bottom:8px;background:#EEECE5}
+.split .bar i{display:block;height:100%}
+.split table{width:100%;border-collapse:collapse}
+.split td{padding:3px 0;font-size:14px}
+.split td:last-child{text-align:right;font-weight:600}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:9px;color:#fff;margin-right:6px}
+.t10{background:var(--r10)}.t20{background:var(--r20)}.t55{background:var(--r55)}
+
+/* order rows */
+.order{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--line)}
+.order:last-child{border-bottom:0}
+.order .t{font-size:12px;color:var(--ink2);width:44px;flex-shrink:0}
+.order .mid{flex:1;min-width:0}
+.order .tot{font-size:17px;font-weight:700}
+.order .det{font-size:12px;color:var(--ink2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.order .inv{font-size:11px;color:var(--acc);font-weight:700}
+.order .ops{display:flex;gap:6px;flex-shrink:0}
+.opbtn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 10px;font-size:13px;cursor:pointer;color:var(--ink)}
+.opbtn.pri{border-color:var(--acc);color:var(--acc);font-weight:700}
+
+.totline{display:flex;justify-content:space-between;padding:4px 0;font-size:14px}
+.totline b{font-size:16px}
+.badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px}
+.badge.open{background:var(--accSoft);color:var(--acc)}
+.badge.closed{background:#ECEAE2;color:var(--closed)}
+.stamp{border:2px solid var(--closed);color:var(--closed);border-radius:8px;display:inline-block;
+  padding:2px 10px;font-weight:800;font-size:13px;transform:rotate(-4deg);letter-spacing:.1em}
+
+/* history */
+.mgroup{margin-bottom:14px}
+.mhead{display:flex;justify-content:space-between;align-items:baseline;padding:0 2px 6px}
+.mhead .mt{font-weight:800;font-size:15px}
+.mhead .ms{font-size:13px;color:var(--ink2)}
+.dayrow{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.dayrow .head{display:flex;align-items:center;gap:10px;padding:12px;cursor:pointer}
+.dayrow .head .d{font-weight:700;flex:1}
+.dayrow .body{border-top:1px solid var(--line);padding:4px 12px 12px;display:none}
+.dayrow.openx .body{display:block}
+.empty{color:var(--ink2);font-size:14px;text-align:center;padding:22px 0}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(21,36,46,.5);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.modal.show{display:flex}
+.sheet{background:var(--paper);width:100%;max-width:640px;max-height:92vh;overflow:auto;
+  border-radius:18px 18px 0 0;padding:16px 16px 26px}
+.sheet h3{margin:2px 0 12px;font-size:16px}
+.xclose{float:right;border:0;background:none;font-size:22px;color:var(--ink2);cursor:pointer;padding:0 4px}
+
+/* invoice preview (80mm look) */
+.ticket{background:#fff;border:1px solid var(--line);border-radius:8px;max-width:320px;margin:12px auto;
+  padding:14px 12px;font-family:"Courier New",monospace;font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.ticket b{font-size:13px}
+
+/* print */
+#printArea{display:none}
+@media print{
+  body>*:not(#printArea){display:none !important}
+  body{padding:0;background:#fff}
+  #printArea{display:block;font-family:"Courier New",monospace;font-size:11pt;line-height:1.4;
+    white-space:pre-wrap;width:72mm;color:#000}
+  @page{margin:4mm}
+}
+.note{font-size:12.5px;color:var(--ink2);line-height:1.5;margin-top:8px}
+.kv{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.switch{position:relative;width:48px;height:28px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:#CFCCC2;border-radius:14px;transition:.15s;cursor:pointer}
+.switch span:before{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.15s}
+.switch input:checked+span{background:var(--acc)}
+.switch input:checked+span:before{transform:translateX(20px)}
+.toast{position:fixed;left:50%;bottom:45%;transform:translateX(-50%) scale(.95);background:var(--ink);color:#fff;
+  padding:16px 22px;border-radius:14px;font-size:16px;font-weight:600;line-height:1.5;z-index:99;opacity:0;
+  transition:.2s;pointer-events:none;max-width:86%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.toast.show{opacity:1;transform:translateX(-50%) scale(1)}
+.btn:active,.opbtn:active{transform:scale(.96);filter:brightness(.85)}
+.btn,.opbtn{transition:transform .08s,filter .08s}
+.envwarn{background:#FBEFD9;border:1.5px solid var(--r20);color:#7A4B12;border-radius:12px;
+  padding:12px;font-size:14px;line-height:1.6;margin:10px 0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>网单账 <span style="font-weight:400;opacity:.6">Ventes en ligne</span></h1>
+  <div class="sub" id="hdrSub"></div>
+</header>
+
+<main>
+<!-- ═══════════ 录入 ═══════════ -->
+<section class="tab-page active" id="page-entry">
+  <div class="card">
+    <h2>录入一单 <span id="entryEditingTag" style="color:var(--r20)"></span></h2>
+    <label>日期</label>
+    <input type="date" id="inDate">
+    <div id="dayClosedWarn" style="display:none" class="note">⚠️ 该日已日结，需在「历史」中重开后才能录入或修改。</div>
+    <label>本单总额 TTC（€）</label>
+    <input type="text" inputmode="decimal" id="inTotal" class="amount num" placeholder="0,00">
+    <label>其中酒精饮料 TTC（20%，无则留空）</label>
+    <input type="text" inputmode="decimal" id="inA20" class="amount num" placeholder="0,00">
+    <div id="wrap55" style="display:none">
+      <label>其中罐/瓶装非酒精饮料 TTC（5,5%）</label>
+      <input type="text" inputmode="decimal" id="inA55" class="amount num" placeholder="0,00">
+    </div>
+    <label>备注（选填：平台单号等）</label>
+    <input type="text" id="inNote" placeholder="">
+    <div class="split" id="splitBox" style="display:none">
+      <div class="bar" id="splitBar"></div>
+      <table id="splitTable"></table>
+    </div>
+    <button class="btn" id="btnSave">保存这单</button>
+    <button class="btn ghost" id="btnCancelEdit" style="display:none">取消修改</button>
+  </div>
+
+  <div class="card">
+    <h2 id="todayTitle">当日订单</h2>
+    <div id="todayList"><div class="empty">暂无订单</div></div>
+    <div id="todayTotals" style="margin-top:10px"></div>
+    <button class="btn" id="btnCloseDay" style="display:none">日结 · 封存这一天</button>
+    <div id="closedStamp" style="display:none;text-align:center;margin-top:12px"><span class="stamp">已日结</span></div>
+  </div>
+</section>
+
+<!-- ═══════════ 历史 ═══════════ -->
+<section class="tab-page" id="page-history">
+  <div id="histBox"><div class="empty">暂无数据</div></div>
+</section>
+
+<!-- ═══════════ 导出 ═══════════ -->
+<section class="tab-page" id="page-export">
+  <div class="card">
+    <h2>本月概况</h2>
+    <div id="curMonthSummary" class="note">暂无数据</div>
+  </div>
+  <div class="card">
+    <h2>会计导出（CSV，法式格式 ; 分隔）</h2>
+    <label>选择月份</label>
+    <select id="selMonth"></select>
+    <button class="btn" id="btnExpMonth">导出该月明细 CSV</button>
+    <label style="margin-top:16px">选择年份</label>
+    <select id="selYear"></select>
+    <button class="btn ghost" id="btnExpYear">导出年度汇总 CSV（一键给会计）</button>
+  </div>
+  <div class="card">
+    <h2>备份</h2>
+    <button class="btn ghost" id="btnBackup">完整备份 JSON</button>
+    <button class="btn ghost" id="btnRestore">导入恢复（合并）</button>
+    <input type="file" id="fileRestore" accept=".json" style="display:none">
+    <div class="note">合并导入：同 ID 订单以文件内容为准，不会产生重复。发票编号取两边最大值继续。</div>
+  </div>
+</section>
+
+<!-- ═══════════ 设置 ═══════════ -->
+<section class="tab-page" id="page-settings">
+  <div class="card">
+    <h2>公司信息（发票抬头，只需填一次）</h2>
+    <label>Raison sociale（公司名）</label><input type="text" id="sName">
+    <label>Forme + capital（如 SARL au capital de 10 000 €）</label><input type="text" id="sForm">
+    <label>Adresse</label><textarea id="sAddr"></textarea>
+    <label>SIRET</label><input type="text" id="sSiret">
+    <label>N° TVA intracommunautaire</label><input type="text" id="sTva">
+    <label>RCS（如 RCS Chalon-sur-Saône 123 456 789）</label><input type="text" id="sRcs">
+    <label>发票脚注（法律条款，已预填标准文本）</label><textarea id="sFooter" style="min-height:90px"></textarea>
+    <button class="btn" id="btnSaveSettings">保存公司信息</button>
+  </div>
+  <div class="card">
+    <h2>发票编号</h2>
+    <div class="row2">
+      <div><label>前缀</label><input type="text" id="sPrefix"></div>
+      <div><label>下一个序号</label><input type="number" id="sNextSeq" min="1"></div>
+    </div>
+    <div class="note">格式：前缀-年份-序号，如 WEB-2026-001。编号必须连续，除非纠错请勿手改。</div>
+  </div>
+  <div class="card">
+    <div class="kv"><span>启用 5,5% 税档（罐/瓶装非酒精饮料）</span>
+      <label class="switch"><input type="checkbox" id="sUse55"><span></span></label></div>
+    <div class="note">默认关闭。开启前先与会计确认入账口径。</div>
+  </div>
+  <div class="card">
+    <h2>打印通道</h2>
+    <div class="note">发票预览页有三个按钮：<br>
+    ① <b>系统打印/存PDF</b> — 走安卓打印框架。装了 Epson TM Print Service Plugin 可直打热敏机，也可存PDF发邮件。<br>
+    ② <b>Epson TM Assistant</b> — 需安装 Epson TM Print Assistant，同一WiFi直打 TM-M30III。<br>
+    ③ <b>RawBT</b> — 备用通道，蓝牙/网口通吃。</div>
+  </div>
+</section>
+</main>
+
+<!-- 发票 modal -->
+<div class="modal" id="modInvoice">
+  <div class="sheet">
+    <button class="xclose" onclick="closeModal('modInvoice')">✕</button>
+    <h3 id="invTitle">开具发票</h3>
+    <div id="invForm">
+      <label>客户名称 *</label><input type="text" id="cName">
+      <label>客户地址</label><textarea id="cAddr"></textarea>
+      <label>客户 N° TVA（企业客户选填）</label><input type="text" id="cTvaNo">
+      <label>发票日期</label><input type="date" id="cDate">
+      <div class="kv" style="border:0"><span>标注已付款（Facture acquittée）</span>
+        <label class="switch"><input type="checkbox" id="cPaid" checked><span></span></label></div>
+      <button class="btn" id="btnGenInvoice">生成发票</button>
+    </div>
+    <div id="invPreviewBox" style="display:none">
+      <div id="envWarn"></div>
+      <div class="ticket" id="invTicket"></div>
+      <button class="btn" id="btnPrintSys" onclick="doSysPrint()">🖨 系统打印 / 存 PDF</button>
+      <button class="btn ghost" id="btnPrintEpson" onclick="doEpson()">Epson TM Assistant 直打</button>
+      <button class="btn ghost" id="btnPrintRawbt" onclick="doRawbt()">RawBT 直打</button>
+      <button class="btn ghost" onclick="doCopyInv()">复制发票文本（备用）</button>
+    </div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+<div class="toast" id="toast"></div>
+
+<nav>
+  <button data-tab="entry" class="on"><span class="ic">✍️</span>录入</button>
+  <button data-tab="history"><span class="ic">📅</span>历史</button>
+  <button data-tab="export"><span class="ic">📤</span>导出</button>
+  <button data-tab="settings"><span class="ic">⚙️</span>设置</button>
+</nav>
+
+<script>
+"use strict";
+/* ================= IndexedDB ================= */
+const DB_NAME="kouunn-ventes-ligne", DB_VER=1;
+let db;
+function openDB(){return new Promise((res,rej)=>{
+  const rq=indexedDB.open(DB_NAME,DB_VER);
+  rq.onupgradeneeded=e=>{
+    const d=e.target.result;
+    if(!d.objectStoreNames.contains("orders")){const s=d.createObjectStore("orders",{keyPath:"id"});s.createIndex("date","date");}
+    if(!d.objectStoreNames.contains("days"))d.createObjectStore("days",{keyPath:"date"});
+    if(!d.objectStoreNames.contains("invoices"))d.createObjectStore("invoices",{keyPath:"no"});
+    if(!d.objectStoreNames.contains("kv"))d.createObjectStore("kv",{keyPath:"k"});
+  };
+  rq.onsuccess=e=>{db=e.target.result;res();};
+  rq.onerror=()=>rej(rq.error);
+});}
+function tx(store,mode,fn){return new Promise((res,rej)=>{
+  const t=db.transaction(store,mode),s=t.objectStore(store);let out;
+  try{out=fn(s);}catch(err){rej(err);return;}
+  t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out);
+  t.onerror=()=>rej(t.error);
+});}
+const put=(st,v)=>tx(st,"readwrite",s=>s.put(v));
+const del=(st,k)=>tx(st,"readwrite",s=>s.delete(k));
+function getAll(st){return new Promise((res,rej)=>{
+  const t=db.transaction(st,"readonly"),rq=t.objectStore(st).getAll();
+  rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error);
+});}
+function getOne(st,k){return new Promise((res,rej)=>{
+  const t=db.transaction(st,"readonly"),rq=t.objectStore(st).get(k);
+  rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error);
+});}
+
+/* ================= state ================= */
+let S={ // settings cache
+  name:"",form:"",addr:"",siret:"",tva:"",rcs:"",
+  footer:"Escompte pour paiement anticipé : néant.\nPénalités de retard : 3 fois le taux d'intérêt légal.\nIndemnité forfaitaire pour frais de recouvrement : 40 €.",
+  prefix:"WEB",nextSeq:1,use55:false
+};
+const saveS=async()=>{await saveS();try{localStorage.setItem("vl-settings",JSON.stringify(S));}catch(_){}};
+
+let ORDERS=[],DAYS={},INVOICES={};
+let editingId=null, invOrderId=null, curInvoice=null;
+
+const fmtE=n=>n.toFixed(2).replace(".",",");
+const parseNum=v=>{v=(v||"").toString().trim().replace(/\s/g,"").replace(",",".");const n=parseFloat(v);return isNaN(n)?0:n;};
+const round2=n=>Math.round(n*100)/100;
+const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const $=id=>document.getElementById(id);
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* TVA split: amounts are TTC */
+function split(total,a20,a55){
+  const t20=round2(a20), t55=round2(a55), t10=round2(total-t20-t55);
+  const v20=round2(t20*20/120), v55=round2(t55*5.5/105.5), v10=round2(t10*10/110);
+  return{t10,t20,t55,v10,v20,v55,h10:round2(t10-v10),h20:round2(t20-v20),h55:round2(t55-v55),
+    ttc:round2(total),tva:round2(v10+v20+v55),ht:round2(total-v10-v20-v55)};
+}
+
+/* ================= entry ================= */
+function refreshSplitPreview(){
+  const total=parseNum($("inTotal").value),a20=parseNum($("inA20").value),a55=S.use55?parseNum($("inA55").value):0;
+  const box=$("splitBox");
+  if(total<=0){box.style.display="none";return;}
+  const sp=split(total,a20,a55);
+  box.style.display="block";
+  const bar=$("splitBar");bar.innerHTML="";
+  [["t10","--r10"],["t20","--r20"],["t55","--r55"]].forEach(([k,c])=>{
+    if(sp[k]>0){const i=document.createElement("i");i.style.width=(sp[k]/sp.ttc*100)+"%";i.style.background=`var(${c})`;bar.appendChild(i);}
+  });
+  let rows=`<tr><td><span class="tag t10">10%</span>TTC ${fmtE(sp.t10)}</td><td>TVA ${fmtE(sp.v10)} €</td></tr>`;
+  if(sp.t20>0)rows+=`<tr><td><span class="tag t20">20%</span>TTC ${fmtE(sp.t20)}</td><td>TVA ${fmtE(sp.v20)} €</td></tr>`;
+  if(sp.t55>0)rows+=`<tr><td><span class="tag t55">5,5%</span>TTC ${fmtE(sp.t55)}</td><td>TVA ${fmtE(sp.v55)} €</td></tr>`;
+  rows+=`<tr><td>HT 合计 ${fmtE(sp.ht)}</td><td>TVA 合计 ${fmtE(sp.tva)} €</td></tr>`;
+  $("splitTable").innerHTML=rows;
+}
+["inTotal","inA20","inA55"].forEach(id=>$(id).addEventListener("input",refreshSplitPreview));
+$("inDate").addEventListener("change",()=>{renderToday();checkDayClosedWarn();});
+
+function checkDayClosedWarn(){
+  const d=$("inDate").value;
+  const closed=DAYS[d]&&DAYS[d].closed;
+  $("dayClosedWarn").style.display=closed?"block":"none";
+  $("btnSave").disabled=!!closed;
+}
+
+$("btnSave").onclick=async()=>{
+  const date=$("inDate").value||todayStr();
+  if(DAYS[date]&&DAYS[date].closed){toast("该日已日结，先去历史里重开");return;}
+  const total=parseNum($("inTotal").value),a20=parseNum($("inA20").value),a55=S.use55?parseNum($("inA55").value):0;
+  if(total<=0){toast("总额必须大于 0");return;}
+  if(a20+a55>total+0.001){toast("分项之和超过总额");return;}
+  if(editingId){
+    const o=ORDERS.find(x=>x.id===editingId);
+    if(o.invoiceNo){toast("该单已开发票，不能修改");return;}
+    o.date=date;o.total=round2(total);o.a20=round2(a20);o.a55=round2(a55);o.note=$("inNote").value.trim();
+    await put("orders",o);editingId=null;
+    $("entryEditingTag").textContent="";$("btnCancelEdit").style.display="none";
+    toast("已修改");
+  }else{
+    const o={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+      date,ts:Date.now(),total:round2(total),a20:round2(a20),a55:round2(a55),note:$("inNote").value.trim(),invoiceNo:null};
+    ORDERS.push(o);await put("orders",o);
+    toast("已保存 · 第 "+ORDERS.filter(x=>x.date===date).length+" 单");
+  }
+  $("inTotal").value="";$("inA20").value="";$("inA55").value="";$("inNote").value="";
+  $("splitBox").style.display="none";
+  renderToday();renderHistory();renderExportSummary();
+  $("inTotal").focus();
+};
+$("btnCancelEdit").onclick=()=>{
+  editingId=null;$("entryEditingTag").textContent="";$("btnCancelEdit").style.display="none";
+  $("inTotal").value="";$("inA20").value="";$("inA55").value="";$("inNote").value="";
+  $("splitBox").style.display="none";
+};
+
+function dayOrders(d){return ORDERS.filter(o=>o.date===d).sort((a,b)=>a.ts-b.ts);}
+function dayTotals(list){
+  const t={ttc:0,h10:0,h20:0,h55:0,v10:0,v20:0,v55:0,t10:0,t20:0,t55:0};
+  list.forEach(o=>{const sp=split(o.total,o.a20,o.a55);
+    for(const k in t)t[k]=round2(t[k]+(k==="ttc"?sp.ttc:sp[k]));});
+  t.tva=round2(t.v10+t.v20+t.v55);t.ht=round2(t.h10+t.h20+t.h55);
+  return t;
+}
+
+function orderRowHTML(o,editable){
+  const sp=split(o.total,o.a20,o.a55);
+  const time=new Date(o.ts).toTimeString().slice(0,5);
+  let det=`10%:${fmtE(sp.t10)}`;
+  if(sp.t20>0)det+=` · 20%:${fmtE(sp.t20)}`;
+  if(sp.t55>0)det+=` · 5,5%:${fmtE(sp.t55)}`;
+  if(o.note)det+=` · ${o.note}`;
+  const inv=o.invoiceNo?`<span class="inv">📄 ${o.invoiceNo}</span> `:"";
+  let ops=`<button class="opbtn pri" onclick="openInvoice('${o.id}')">${o.invoiceNo?"发票":"开票"}</button>`;
+  if(editable&&!o.invoiceNo)ops+=`<button class="opbtn" onclick="editOrder('${o.id}')">改</button>
+    <button class="opbtn" onclick="delOrder('${o.id}')">删</button>`;
+  return`<div class="order"><div class="t num">${time}</div>
+    <div class="mid"><div class="tot num">${fmtE(o.total)} €</div><div class="det num">${inv}${det}</div></div>
+    <div class="ops">${ops}</div></div>`;
+}
+
+function totalsHTML(t){
+  let h=`<div class="totline"><span>营业额 TTC</span><b class="num">${fmtE(t.ttc)} €</b></div>
+  <div class="totline"><span><span class="tag t10">10%</span>HT ${fmtE(t.h10)}</span><span class="num">TVA ${fmtE(t.v10)} €</span></div>`;
+  if(t.t20>0)h+=`<div class="totline"><span><span class="tag t20">20%</span>HT ${fmtE(t.h20)}</span><span class="num">TVA ${fmtE(t.v20)} €</span></div>`;
+  if(t.t55>0)h+=`<div class="totline"><span><span class="tag t55">5,5%</span>HT ${fmtE(t.h55)}</span><span class="num">TVA ${fmtE(t.v55)} €</span></div>`;
+  h+=`<div class="totline"><span>HT 合计 / TVA 合计</span><span class="num">${fmtE(t.ht)} / ${fmtE(t.tva)} €</span></div>`;
+  return h;
+}
+
+function renderToday(){
+  const d=$("inDate").value||todayStr();
+  const list=dayOrders(d);
+  $("todayTitle").textContent=d+" 订单（"+list.length+"）";
+  const closed=DAYS[d]&&DAYS[d].closed;
+  $("todayList").innerHTML=list.length?list.map(o=>orderRowHTML(o,!closed)).join(""):'<div class="empty">暂无订单</div>';
+  $("todayTotals").innerHTML=list.length?totalsHTML(dayTotals(list)):"";
+  $("btnCloseDay").style.display=(list.length&&!closed)?"block":"none";
+  $("closedStamp").style.display=closed?"block":"none";
+  checkDayClosedWarn();
+}
+
+window.editOrder=id=>{
+  const o=ORDERS.find(x=>x.id===id);if(!o)return;
+  editingId=id;
+  $("inDate").value=o.date;$("inTotal").value=fmtE(o.total);
+  $("inA20").value=o.a20?fmtE(o.a20):"";$("inA55").value=o.a55?fmtE(o.a55):"";
+  $("inNote").value=o.note||"";
+  $("entryEditingTag").textContent="（修改中）";$("btnCancelEdit").style.display="block";
+  refreshSplitPreview();window.scrollTo({top:0,behavior:"smooth"});
+};
+window.delOrder=async id=>{
+  const o=ORDERS.find(x=>x.id===id);if(!o)return;
+  if(o.invoiceNo){toast("已开发票的单不能删除");return;}
+  if(!confirm("删除这一单？"))return;
+  ORDERS=ORDERS.filter(x=>x.id!==id);await del("orders",id);
+  renderToday();renderHistory();renderExportSummary();toast("已删除");
+};
+
+$("btnCloseDay").onclick=async()=>{
+  const d=$("inDate").value||todayStr();
+  const t=dayTotals(dayOrders(d));
+  if(!confirm(`日结 ${d}？\n共 ${dayOrders(d).length} 单 · TTC ${fmtE(t.ttc)} €\n封存后不可修改（可在历史重开）`))return;
+  DAYS[d]={date:d,closed:true,closedAt:Date.now()};
+  await put("days",DAYS[d]);
+  renderToday();renderHistory();toast("已日结 "+d);
+};
+
+/* ================= history ================= */
+window.toggleDay=el=>el.parentElement.classList.toggle("openx");
+window.reopenDay=async d=>{
+  if(!confirm("重开 "+d+"？重开后该日可修改，改完记得重新日结。"))return;
+  DAYS[d].closed=false;await put("days",DAYS[d]);
+  renderToday();renderHistory();toast("已重开 "+d);
+};
+window.recloseDay=async d=>{
+  DAYS[d]={date:d,closed:true,closedAt:Date.now()};await put("days",DAYS[d]);
+  renderToday();renderHistory();toast("已日结 "+d);
+};
+
+function renderHistory(){
+  if(!ORDERS.length){$("histBox").innerHTML='<div class="empty">暂无数据</div>';return;}
+  const byMonth={};
+  ORDERS.forEach(o=>{const m=o.date.slice(0,7);(byMonth[m]=byMonth[m]||[]).push(o);});
+  const months=Object.keys(byMonth).sort().reverse();
+  let html="";
+  months.forEach(m=>{
+    const mt=dayTotals(byMonth[m]);
+    const days=[...new Set(byMonth[m].map(o=>o.date))].sort().reverse();
+    html+=`<div class="mgroup"><div class="mhead"><span class="mt">${m}</span>
+      <span class="ms num">${byMonth[m].length} 单 · TTC ${fmtE(mt.ttc)} € · TVA ${fmtE(mt.tva)} €</span></div>`;
+    days.forEach(d=>{
+      const list=dayOrders(d),t=dayTotals(list);
+      const closed=DAYS[d]&&DAYS[d].closed;
+      html+=`<div class="dayrow"><div class="head" onclick="toggleDay(this)">
+        <span class="d">${d.slice(8)}日</span>
+        <span class="num" style="font-size:14px">${list.length} 单 · ${fmtE(t.ttc)} €</span>
+        <span class="badge ${closed?"closed":"open"}">${closed?"已日结":"未日结"}</span></div>
+        <div class="body">${list.map(o=>orderRowHTML(o,!closed)).join("")}
+        <div style="margin-top:8px">${totalsHTML(t)}</div>
+        ${closed?`<button class="btn ghost small" onclick="reopenDay('${d}')">重开这一天</button>`
+                :`<button class="btn small" onclick="recloseDay('${d}')">日结这一天</button>`}
+        </div></div>`;
+    });
+    html+="</div>";
+  });
+  $("histBox").innerHTML=html;
+}
+
+/* ================= invoice ================= */
+window.openInvoice=id=>{
+  const o=ORDERS.find(x=>x.id===id);if(!o)return;
+  invOrderId=id;
+  if(o.invoiceNo&&INVOICES[o.invoiceNo]){ // reprint
+    curInvoice=INVOICES[o.invoiceNo];
+    $("invTitle").textContent="发票 "+o.invoiceNo;
+    $("invForm").style.display="none";
+    showInvoicePreview();
+  }else{
+    if(!S.name||!S.siret){toast("先在设置里填公司信息");switchTab("settings");return;}
+    curInvoice=null;
+    $("invTitle").textContent="开具发票 · "+fmtE(o.total)+" €";
+    $("invForm").style.display="block";
+    $("invPreviewBox").style.display="none";
+    $("cName").value="";$("cAddr").value="";$("cTvaNo").value="";
+    $("cDate").value=o.date;$("cPaid").checked=true;
+  }
+  $("modInvoice").classList.add("show");
+};
+window.closeModal=id=>$(id).classList.remove("show");
+
+$("btnGenInvoice").onclick=async()=>{
+  const o=ORDERS.find(x=>x.id===invOrderId);if(!o)return;
+  const cname=$("cName").value.trim();
+  if(!cname){toast("客户名称必填");return;}
+  const year=($("cDate").value||o.date).slice(0,4);
+  const no=`${S.prefix}-${year}-${String(S.nextSeq).padStart(3,"0")}`;
+  const inv={no,orderId:o.id,date:$("cDate").value||o.date,
+    client:{name:cname,addr:$("cAddr").value.trim(),tva:$("cTvaNo").value.trim()},
+    paid:$("cPaid").checked,total:o.total,a20:o.a20,a55:o.a55,note:o.note||"",ts:Date.now(),
+    seller:{name:S.name,form:S.form,addr:S.addr,siret:S.siret,tva:S.tva,rcs:S.rcs,footer:S.footer}};
+  INVOICES[no]=inv;o.invoiceNo=no;S.nextSeq++;
+  await put("invoices",inv);await put("orders",o);await saveS();
+  $("sNextSeq").value=S.nextSeq;
+  curInvoice=inv;
+  $("invForm").style.display="none";
+  showInvoicePreview();
+  renderToday();renderHistory();
+  toast("发票 "+no+" 已生成");
+};
+
+function invoiceText(inv){
+  const sp=split(inv.total,inv.a20,inv.a55);
+  const W=42,line=c=>c.repeat(W),ctr=s=>{s=s.slice(0,W);const p=Math.max(0,(W-s.length)>>1);return" ".repeat(p)+s;};
+  const lr=(l,r)=>{r=r.toString();l=l.toString().slice(0,W-r.length-1);return l+" ".repeat(Math.max(1,W-l.length-r.length))+r;};
+  const dt=inv.date.split("-").reverse().join("/");
+  let L=[];
+  L.push(ctr(inv.seller.name.toUpperCase()));
+  if(inv.seller.form)L.push(ctr(inv.seller.form));
+  inv.seller.addr.split("\n").forEach(a=>a.trim()&&L.push(ctr(a.trim())));
+  L.push(ctr("SIRET "+inv.seller.siret));
+  if(inv.seller.tva)L.push(ctr("TVA "+inv.seller.tva));
+  if(inv.seller.rcs)L.push(ctr(inv.seller.rcs));
+  L.push(line("="));
+  L.push(ctr("FACTURE "+inv.no));
+  L.push(ctr("Date : "+dt));
+  L.push(line("="));
+  L.push("Client :");
+  L.push("  "+inv.client.name);
+  if(inv.client.addr)inv.client.addr.split("\n").forEach(a=>a.trim()&&L.push("  "+a.trim()));
+  if(inv.client.tva)L.push("  TVA : "+inv.client.tva);
+  L.push(line("-"));
+  L.push("Vente de plats et boissons a emporter /");
+  L.push("livraison - commande en ligne");
+  if(inv.note)wrapW("Commande n° : "+inv.note,W).forEach(x=>L.push(x));
+  L.push(line("-"));
+  L.push(lr("Taux    Base HT      TVA","TTC"));
+  const row=(taux,h,v,t)=>lr(taux.padEnd(7)+fmtE(h).padStart(8)+fmtE(v).padStart(9),fmtE(t));
+  if(sp.t10>0)L.push(row("10%",sp.h10,sp.v10,sp.t10));
+  if(sp.t20>0)L.push(row("20%",sp.h20,sp.v20,sp.t20));
+  if(sp.t55>0)L.push(row("5,5%",sp.h55,sp.v55,sp.t55));
+  L.push(line("-"));
+  L.push(lr("TOTAL HT",fmtE(sp.ht)+" EUR"));
+  L.push(lr("TOTAL TVA",fmtE(sp.tva)+" EUR"));
+  L.push(lr("TOTAL TTC",fmtE(sp.ttc)+" EUR"));
+  L.push(line("="));
+  if(inv.paid)L.push("Facture acquittee le "+dt+" -");
+  if(inv.paid)L.push("paiement en ligne.");
+  else L.push("Paiement a reception.");
+  L.push("");
+  inv.seller.footer.split("\n").forEach(f=>{
+    wrapW(f.trim(),W).forEach(x=>L.push(x));
+  });
+  return L.join("\n");
+}
+function wrapW(s,W){
+  const out=[];let cur="";
+  s.split(/\s+/).forEach(w=>{
+    while(w.length>W){out.push(cur);cur="";out.push(w.slice(0,W));w=w.slice(W);}
+    if(!cur)cur=w;
+    else if((cur+" "+w).length<=W)cur+=" "+w;
+    else{out.push(cur);cur=w;}
+  });
+  if(cur)out.push(cur);
+  return out.filter(x=>x!=="");
+}
+
+/* environment detection */
+const UA=navigator.userAgent;
+const IS_WECHAT=/MicroMessenger/i.test(UA);
+const IS_INAPP=IS_WECHAT||/QQ\/|Weibo|DingTalk|Line\//i.test(UA);
+const IS_IOS=/iPhone|iPad|iPod/i.test(UA);
+
+function showInvoicePreview(){
+  const txt=invoiceText(curInvoice);
+  $("invTicket").textContent=txt;
+  $("printArea").textContent=txt;
+  if(IS_INAPP){
+    $("envWarn").className="envwarn";
+    $("envWarn").innerHTML=`⚠️ 当前在${IS_WECHAT?"微信":"App"}内置浏览器中，打印通道会被拦截。<br>请点右上角 ··· 选「在浏览器打开」（Safari/Chrome），再打印。`;
+  }else{$("envWarn").className="";$("envWarn").innerHTML="";}
+  $("btnPrintRawbt").style.display=IS_IOS?"none":"block"; // RawBT 仅安卓
+  $("invPreviewBox").style.display="block";
+}
+function launchScheme(url,appName){
+  if(IS_INAPP){toast("⚠️ "+(IS_WECHAT?"微信":"此App")+"内无法唤起打印\n请点右上角 ··· → 在浏览器打开");return;}
+  toast("正在唤起 "+appName+" …");
+  const t0=Date.now();
+  location.href=url;
+  setTimeout(()=>{
+    if(!document.hidden&&Date.now()-t0>=1400)
+      toast("❌ 未能唤起 "+appName+"\n请确认已安装该App");
+  },1500);
+}
+window.doSysPrint=()=>{
+  if(IS_INAPP){toast("⚠️ "+(IS_WECHAT?"微信":"此App")+"内无法打印\n请点右上角 ··· → 在浏览器打开");return;}
+  if(typeof window.print!=="function"){toast("❌ 此浏览器不支持系统打印");return;}
+  toast("正在打开打印面板…");
+  setTimeout(()=>window.print(),350);
+};
+window.doEpson=()=>{
+  const txt=invoiceText(curInvoice).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  const xml=`<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print"><text lang="mul" font="font_a" width="1" height="1">${txt}&#10;&#10;</text><cut type="feed"/></epos-print>`;
+  launchScheme("tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&reselect=yes&data="+encodeURIComponent(xml),"Epson TM Print Assistant");
+};
+window.doRawbt=()=>{
+  launchScheme("rawbt:"+encodeURIComponent(invoiceText(curInvoice)+"\n\n\n"),"RawBT");
+};
+window.doCopyInv=async()=>{
+  try{await navigator.clipboard.writeText(invoiceText(curInvoice));toast("✅ 发票文本已复制\n可粘贴到任何打印App或邮件");}
+  catch(_){
+    const ta=document.createElement("textarea");ta.value=invoiceText(curInvoice);
+    document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();
+    toast("✅ 发票文本已复制");
+  }
+};
+
+/* ================= export ================= */
+function csvDownload(name,content){
+  const blob=new Blob(["\uFEFF"+content],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+function renderExportSummary(){
+  const m=todayStr().slice(0,7);
+  const list=ORDERS.filter(o=>o.date.slice(0,7)===m);
+  if(!list.length){$("curMonthSummary").textContent="本月暂无数据";}
+  else{const t=dayTotals(list);
+    $("curMonthSummary").innerHTML=`<b>${m}</b> · ${list.length} 单<br>
+    TTC <b class="num">${fmtE(t.ttc)} €</b> · HT ${fmtE(t.ht)} · TVA <b class="num">${fmtE(t.tva)} €</b><br>
+    <span class="num">10%: ${fmtE(t.v10)}${t.v20?" · 20%: "+fmtE(t.v20):""}${t.v55?" · 5,5%: "+fmtE(t.v55):""}</span>`;}
+  // month/year selectors
+  const months=[...new Set(ORDERS.map(o=>o.date.slice(0,7)))].sort().reverse();
+  const years=[...new Set(ORDERS.map(o=>o.date.slice(0,4)))].sort().reverse();
+  $("selMonth").innerHTML=months.map(x=>`<option>${x}</option>`).join("")||`<option>${m}</option>`;
+  $("selYear").innerHTML=years.map(x=>`<option>${x}</option>`).join("")||`<option>${m.slice(0,4)}</option>`;
+}
+const csvHead="Date;N ordre;Total TTC;TTC 10%;HT 10%;TVA 10%;TTC 20%;HT 20%;TVA 20%;TTC 5,5%;HT 5,5%;TVA 5,5%;Total HT;Total TVA;Facture;Note";
+function orderCsvLine(o,idx){
+  const sp=split(o.total,o.a20,o.a55);
+  return[o.date,idx,fmtE(sp.ttc),fmtE(sp.t10),fmtE(sp.h10),fmtE(sp.v10),
+    fmtE(sp.t20),fmtE(sp.h20),fmtE(sp.v20),fmtE(sp.t55),fmtE(sp.h55),fmtE(sp.v55),
+    fmtE(sp.ht),fmtE(sp.tva),o.invoiceNo||"",(o.note||"").replace(/;/g,",")].join(";");
+}
+function totalsCsvLine(label,t){
+  return[label,"",fmtE(t.ttc),fmtE(t.t10),fmtE(t.h10),fmtE(t.v10),
+    fmtE(t.t20),fmtE(t.h20),fmtE(t.v20),fmtE(t.t55),fmtE(t.h55),fmtE(t.v55),
+    fmtE(t.ht),fmtE(t.tva),"",""].join(";");
+}
+$("btnExpMonth").onclick=()=>{
+  const m=$("selMonth").value;
+  const list=ORDERS.filter(o=>o.date.slice(0,7)===m).sort((a,b)=>a.ts-b.ts);
+  if(!list.length){toast("该月无数据");return;}
+  let lines=[csvHead];
+  let idx=0,lastDate="";
+  list.forEach(o=>{if(o.date!==lastDate){lastDate=o.date;idx=0;}idx++;lines.push(orderCsvLine(o,idx));});
+  lines.push(totalsCsvLine("TOTAL "+m,dayTotals(list)));
+  csvDownload(`ventes-en-ligne-${m}.csv`,lines.join("\n"));
+  toast("已导出 "+m);
+};
+$("btnExpYear").onclick=()=>{
+  const y=$("selYear").value;
+  const list=ORDERS.filter(o=>o.date.slice(0,4)===y);
+  if(!list.length){toast("该年无数据");return;}
+  let lines=["Mois;Nb commandes;Total TTC;TTC 10%;HT 10%;TVA 10%;TTC 20%;HT 20%;TVA 20%;TTC 5,5%;HT 5,5%;TVA 5,5%;Total HT;Total TVA"];
+  for(let m=1;m<=12;m++){
+    const mm=y+"-"+String(m).padStart(2,"0");
+    const ml=list.filter(o=>o.date.slice(0,7)===mm);
+    if(!ml.length)continue;
+    const t=dayTotals(ml);
+    lines.push([mm,ml.length,fmtE(t.ttc),fmtE(t.t10),fmtE(t.h10),fmtE(t.v10),
+      fmtE(t.t20),fmtE(t.h20),fmtE(t.v20),fmtE(t.t55),fmtE(t.h55),fmtE(t.v55),
+      fmtE(t.ht),fmtE(t.tva)].join(";"));
+  }
+  const T=dayTotals(list);
+  lines.push(["TOTAL "+y,list.length,fmtE(T.ttc),fmtE(T.t10),fmtE(T.h10),fmtE(T.v10),
+    fmtE(T.t20),fmtE(T.h20),fmtE(T.v20),fmtE(T.t55),fmtE(T.h55),fmtE(T.v55),
+    fmtE(T.ht),fmtE(T.tva)].join(";"));
+  csvDownload(`ventes-en-ligne-${y}-annuel.csv`,lines.join("\n"));
+  toast("已导出年度 "+y);
+};
+
+/* backup / restore */
+$("btnBackup").onclick=()=>{
+  const data={app:"kouunn-ventes-ligne",ver:1,exportedAt:new Date().toISOString(),
+    settings:S,orders:ORDERS,days:Object.values(DAYS),invoices:Object.values(INVOICES)};
+  const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="ventes-ligne-backup-"+todayStr()+".json";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast("备份已导出");
+};
+$("btnRestore").onclick=()=>$("fileRestore").click();
+$("fileRestore").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const data=JSON.parse(await f.text());
+    if(data.app!=="kouunn-ventes-ligne")throw 0;
+    for(const o of data.orders||[]){
+      const i=ORDERS.findIndex(x=>x.id===o.id);
+      if(i>=0)ORDERS[i]=o;else ORDERS.push(o);
+      await put("orders",o);
+    }
+    for(const d of data.days||[]){DAYS[d.date]=d;await put("days",d);}
+    for(const v of data.invoices||[]){INVOICES[v.no]=v;await put("invoices",v);}
+    if(data.settings){
+      S.nextSeq=Math.max(S.nextSeq,data.settings.nextSeq||1);
+      ["name","form","addr","siret","tva","rcs","footer","prefix"].forEach(k=>{if(!S[k]&&data.settings[k])S[k]=data.settings[k];});
+      await saveS();
+    }
+    loadSettingsToUI();renderAll();toast("导入合并完成");
+  }catch(_){toast("文件格式不对");}
+  e.target.value="";
+};
+
+/* ================= settings ================= */
+function loadSettingsToUI(){
+  $("sName").value=S.name;$("sForm").value=S.form;$("sAddr").value=S.addr;
+  $("sSiret").value=S.siret;$("sTva").value=S.tva;$("sRcs").value=S.rcs;
+  $("sFooter").value=S.footer;$("sPrefix").value=S.prefix;$("sNextSeq").value=S.nextSeq;
+  $("sUse55").checked=S.use55;
+  $("wrap55").style.display=S.use55?"block":"none";
+}
+$("btnSaveSettings").onclick=async()=>{
+  S.name=$("sName").value.trim();S.form=$("sForm").value.trim();S.addr=$("sAddr").value.trim();
+  S.siret=$("sSiret").value.trim();S.tva=$("sTva").value.trim();S.rcs=$("sRcs").value.trim();
+  S.footer=$("sFooter").value;
+  await saveS();toast("已保存");
+};
+$("sPrefix").onchange=async()=>{S.prefix=$("sPrefix").value.trim()||"WEB";await saveS();};
+$("sNextSeq").onchange=async()=>{S.nextSeq=Math.max(1,parseInt($("sNextSeq").value)||1);await saveS();};
+$("sUse55").onchange=async()=>{S.use55=$("sUse55").checked;$("wrap55").style.display=S.use55?"block":"none";
+  await saveS();refreshSplitPreview();};
+
+/* ================= nav / init ================= */
+function switchTab(t){
+  document.querySelectorAll(".tab-page").forEach(p=>p.classList.toggle("active",p.id==="page-"+t));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  if(t==="history")renderHistory();
+  if(t==="export")renderExportSummary();
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+
+function renderAll(){renderToday();renderHistory();renderExportSummary();}
+
+(async function init(){
+  await openDB();
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  const s=await getOne("kv","settings");
+  if(s&&s.v)S=Object.assign(S,s.v);
+  else{ // IndexedDB里没有：尝试从localStorage副本恢复
+    try{const ls=JSON.parse(localStorage.getItem("vl-settings")||"null");
+      if(ls){S=Object.assign(S,ls);await put("kv",{k:"settings",v:S});toast("已从本地副本恢复公司信息");}
+    }catch(_){}
+  }
+  ORDERS=await getAll("orders");
+  (await getAll("days")).forEach(d=>DAYS[d.date]=d);
+  (await getAll("invoices")).forEach(v=>INVOICES[v.no]=v);
+  $("inDate").value=todayStr();
+  $("hdrSub").textContent="网单 TVA 日结 · 发票 · "+todayStr();
+  loadSettingsToUI();
+  renderAll();
+})();
+</script>
+</body>
+</html>
