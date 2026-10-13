@@ -132,7 +132,7 @@ textarea{font-size:15px;min-height:60px;resize:vertical}
 <body>
 
 <header>
-  <h1>网单账 <span style="font-weight:400;opacity:.6">Ventes en ligne</span></h1>
+  <h1>网单账 <span style="font-weight:400;opacity:.6">Ventes en ligne</span> <span id="driveDot" style="font-size:13px;opacity:.5;float:right">☁</span></h1>
   <div class="sub" id="hdrSub"></div>
 </header>
 
@@ -165,9 +165,17 @@ textarea{font-size:15px;min-height:60px;resize:vertical}
   <div class="card">
     <h2>万能口 · 贴块导入</h2>
     <textarea id="blockIn" placeholder='{"app":"ventes-ligne","date":"2026-10-12","orders":[{"total":55.80,"a20":0},{"total":49.30,"a20":4.60}]}' style="min-height:90px;font-family:monospace;font-size:13px"></textarea>
-    <button class="btn ghost" id="btnPrecheck">预检</button>
-    <div id="precheckBox" style="display:none;margin-top:10px"></div>
-    <button class="btn" id="btnImport" style="display:none">确认导入</button>
+    <button class="btn" id="btnPrecheck">导入</button>
+  </div>
+  <div class="modal" id="modImport">
+    <div class="sheet" style="max-height:70vh">
+      <h3>导入网单块</h3>
+      <div id="precheckBox"></div>
+      <div class="row2" style="margin-top:12px">
+        <button class="btn ghost" onclick="closeModal('modImport')" style="margin:0">取消</button>
+        <button class="btn" id="btnImport" style="margin:0">确认</button>
+      </div>
+    </div>
   </div>
   <div id="undoBar" style="display:none;position:fixed;left:12px;right:12px;bottom:84px;z-index:40;background:var(--ink);color:#fff;border-radius:14px;padding:12px 14px;display:none;align-items:center;justify-content:space-between;box-shadow:0 8px 30px rgba(0,0,0,.35)">
     <span id="undoText"></span><button class="opbtn" id="btnUndo" style="font-weight:700">撤销</button>
@@ -208,6 +216,7 @@ textarea{font-size:15px;min-height:60px;resize:vertical}
     <h2>备份</h2>
     <button class="btn ghost" id="btnBackup">完整备份 JSON</button>
     <button class="btn ghost" id="btnRestore">导入恢复（合并）</button>
+    <button class="btn ghost" id="btnDriveRestore">从 Drive 恢复（合并）</button>
     <input type="file" id="fileRestore" accept=".json" style="display:none">
     <div class="note">合并导入：同 ID 订单以文件内容为准，不会产生重复。发票编号取两边最大值继续。</div>
   </div>
@@ -238,6 +247,13 @@ textarea{font-size:15px;min-height:60px;resize:vertical}
     <div class="kv"><span>启用 5,5% 税档（罐/瓶装非酒精饮料）</span>
       <label class="switch"><input type="checkbox" id="sUse55"><span></span></label></div>
     <div class="note">默认关闭。开启前先与会计确认入账口径。</div>
+  </div>
+  <div class="card">
+    <h2>Google Drive 自动备份</h2>
+    <div id="drStatus" class="note">未连接</div>
+    <button class="btn ghost" id="btnDrive">连接 Drive · 开启自动备份</button>
+    <button class="btn ghost" id="btnDriveSwitch" style="display:none">换一个 Google 账号</button>
+    <div class="note">每次导入、录单、日结、开票后自动把台账传到 Drive 的「KOUUNN仓」文件夹（ventes_backup.json）。换手机：连上同一账号 → 导出页「从 Drive 恢复」。</div>
   </div>
   <div class="card">
     <h2>打印通道</h2>
@@ -383,12 +399,12 @@ $("btnSave").onclick=async()=>{
     o.date=date;o.total=round2(total);o.a20=round2(a20);o.a55=round2(a55);o.note=$("inNote").value.trim();
     await put("orders",o);editingId=null;
     $("entryEditingTag").textContent="";$("btnCancelEdit").style.display="none";
-    toast("已修改");
+    toast("已修改");driveTouch();
   }else{
     const o={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),
       date,ts:Date.now(),total:round2(total),a20:round2(a20),a55:round2(a55),note:$("inNote").value.trim(),invoiceNo:null};
     ORDERS.push(o);await put("orders",o);
-    toast("已保存 · 第 "+ORDERS.filter(x=>x.date===date).length+" 单");
+    toast("已保存 · 第 "+ORDERS.filter(x=>x.date===date).length+" 单");driveTouch();
   }
   $("inTotal").value="";$("inA20").value="";$("inA55").value="";$("inNote").value="";
   $("splitBox").style.display="none";
@@ -461,7 +477,7 @@ window.delOrder=async id=>{
   if(o.invoiceNo){toast("已开发票的单不能删除");return;}
   if(!confirm("删除这一单？"))return;
   ORDERS=ORDERS.filter(x=>x.id!==id);await del("orders",id);
-  renderToday();renderHistory();renderExportSummary();toast("已删除");
+  renderToday();renderHistory();renderExportSummary();toast("已删除");driveTouch();
 };
 
 $("btnCloseDay").onclick=async()=>{
@@ -470,7 +486,7 @@ $("btnCloseDay").onclick=async()=>{
   if(!confirm(`日结 ${d}？\n共 ${dayOrders(d).length} 单 · TTC ${fmtE(t.ttc)} €\n封存后不可修改（可在历史重开）`))return;
   DAYS[d]={date:d,closed:true,closedAt:Date.now()};
   await put("days",DAYS[d]);
-  renderToday();renderHistory();toast("已日结 "+d);
+  renderToday();renderHistory();toast("已日结 "+d);driveTouch();
 };
 
 /* ================= history ================= */
@@ -478,11 +494,11 @@ window.toggleDay=el=>el.parentElement.classList.toggle("openx");
 window.reopenDay=async d=>{
   if(!confirm("重开 "+d+"？重开后该日可修改，改完记得重新日结。"))return;
   DAYS[d].closed=false;await put("days",DAYS[d]);
-  renderToday();renderHistory();toast("已重开 "+d);
+  renderToday();renderHistory();toast("已重开 "+d);driveTouch();
 };
 window.recloseDay=async d=>{
   DAYS[d]={date:d,closed:true,closedAt:Date.now()};await put("days",DAYS[d]);
-  renderToday();renderHistory();toast("已日结 "+d);
+  renderToday();renderHistory();toast("已日结 "+d);driveTouch();
 };
 
 function renderHistory(){
@@ -553,7 +569,7 @@ $("btnGenInvoice").onclick=async()=>{
   $("invForm").style.display="none";
   showInvoicePreview();
   renderToday();renderHistory();
-  toast("发票 "+no+" 已生成");
+  toast("发票 "+no+" 已生成");driveTouch();
 };
 
 function invoiceText(inv){
@@ -683,9 +699,9 @@ function parseBlock(txt){
   return{date:b.date,orders,hash:blockHash(JSON.stringify({d:b.date,o:orders.map(x=>[x.total,x.a20])}))};
 }
 $("btnPrecheck").onclick=()=>{
-  PRE=null;$("btnImport").style.display="none";
+  PRE=null;
   let p;
-  try{p=parseBlock($("blockIn").value);}catch(e){$("precheckBox").style.display="block";$("precheckBox").innerHTML=`<div class="envwarn">❌ ${e}</div>`;return;}
+  try{p=parseBlock($("blockIn").value);}catch(e){toast("❌ "+e);return;}
   const bad=p.orders.filter(o=>o.err.length);
   const sum=p.orders.reduce((a,o)=>a+o.total,0),s20=p.orders.reduce((a,o)=>a+o.a20,0);
   const closed=DAYS[p.date]&&DAYS[p.date].closed;
@@ -701,14 +717,16 @@ $("btnPrecheck").onclick=()=>{
   if(sameHash){block=true;h+=`<div class="envwarn">⚠️ 这个块已经导入过（内容完全相同），不再重复导入。</div>`;}
   if(!block&&existBlock.length){h+=`<div class="envwarn">⚠️ ${p.date} 已有 ${existBlock.length} 单块导入记录（合计 ${fmtE(dayTotals(existBlock).ttc)} €）。确认导入将<b>替换</b>这 ${existBlock.length} 单。</div>`;}
   if(!block&&existManual.length){h+=`<div class="envwarn">ℹ️ ${p.date} 另有 ${existManual.length} 单手录记录，保留不动。</div>`;}
-  h+=`<div style="margin-top:8px">`+p.orders.map(o=>`<div class="order"><div class="t num">第${o.seq}单</div>
-    <div class="mid"><div class="tot num">${fmtE(o.total)} €</div><div class="det num">10%:${fmtE(round2(o.total-o.a20))}${o.a20?" · 20%:"+fmtE(o.a20):""}${o.err.length?' <span style="color:var(--danger)">'+o.err.join("/")+"</span>":""}</div></div></div>`).join("")+`</div>`;
-  $("precheckBox").style.display="block";$("precheckBox").innerHTML=h;
-  if(!block){PRE={...p,replace:existBlock.map(o=>o.id)};$("btnImport").style.display="block";}
+  h+=`<div style="margin-top:8px;max-height:30vh;overflow:auto">`+p.orders.map(o=>`<div class="order" style="padding:6px 2px"><div class="t num">第${o.seq}单</div>
+    <div class="mid"><div class="tot num" style="font-size:15px">${fmtE(o.total)} €</div><div class="det num">${o.a20?"20%:"+fmtE(o.a20):""}${o.err.length?' <span style="color:var(--danger)">'+o.err.join("/")+"</span>":""}</div></div></div>`).join("")+`</div>`;
+  $("precheckBox").innerHTML=h;
+  $("btnImport").style.display=block?"none":"block";
+  if(!block)PRE={...p,replace:existBlock.map(o=>o.id)};
+  $("modImport").classList.add("show");
 };
 $("btnImport").onclick=async()=>{
   if(!PRE)return;
-  const p=PRE;PRE=null;$("btnImport").style.display="none";
+  const p=PRE;PRE=null;closeModal("modImport");
   const removed=[];
   for(const id of p.replace){const o=ORDERS.find(x=>x.id===id);if(!o)continue;if(o.invoiceNo){toast("第"+(o.seq||"?")+"单已开发票，保留不替换");continue;}removed.push(o);ORDERS=ORDERS.filter(x=>x.id!==id);await del("orders",id);}
   const base=new Date(p.date+"T12:00:00").getTime();
@@ -718,8 +736,8 @@ $("btnImport").onclick=async()=>{
       total:o.total,a20:o.a20,a55:0,note:"",invoiceNo:null,src:"block",seq:o.seq,blockHash:p.hash};
     ORDERS.push(rec);await put("orders",rec);added.push(rec);
   }
-  $("blockIn").value="";$("precheckBox").style.display="none";
-  $("inDate").value=p.date;renderAll();
+  $("blockIn").value="";
+  $("inDate").value=p.date;renderAll();driveTouch();
   UNDO={added,removed};
   const bar=$("undoBar");bar.style.display="flex";
   let left=60;$("undoText").textContent=`已导入 ${p.date} · ${added.length} 单 · ${left}s`;
@@ -732,7 +750,7 @@ $("btnUndo").onclick=async()=>{
   if(!UNDO)return;clearInterval(undoTimer);$("undoBar").style.display="none";
   for(const o of UNDO.added){ORDERS=ORDERS.filter(x=>x.id!==o.id);await del("orders",o.id);}
   for(const o of UNDO.removed){ORDERS.push(o);await put("orders",o);}
-  UNDO=null;renderAll();toast("已撤销");
+  UNDO=null;renderAll();toast("已撤销");driveTouch();
 };
 
 /* ================= export ================= */
@@ -833,10 +851,26 @@ $("btnExpWide").onclick=()=>{
 };
 
 /* backup / restore */
+function backupPayload(){return{app:"kouunn-ventes-ligne",ver:1,exportedAt:new Date().toISOString(),
+    settings:S,orders:ORDERS,days:Object.values(DAYS),invoices:Object.values(INVOICES)};}
+async function mergeBackup(data){
+  if(!data||data.app!=="kouunn-ventes-ligne")throw 0;
+  for(const o of data.orders||[]){
+    const i=ORDERS.findIndex(x=>x.id===o.id);
+    if(i>=0)ORDERS[i]=o;else ORDERS.push(o);
+    await put("orders",o);
+  }
+  for(const d of data.days||[]){DAYS[d.date]=d;await put("days",d);}
+  for(const v of data.invoices||[]){INVOICES[v.no]=v;await put("invoices",v);}
+  if(data.settings){
+    S.nextSeq=Math.max(S.nextSeq,data.settings.nextSeq||1);
+    ["name","form","addr","siret","tva","rcs","footer","prefix"].forEach(k=>{if(!S[k]&&data.settings[k])S[k]=data.settings[k];});
+    await saveS();
+  }
+  loadSettingsToUI();renderAll();
+}
 $("btnBackup").onclick=()=>{
-  const data={app:"kouunn-ventes-ligne",ver:1,exportedAt:new Date().toISOString(),
-    settings:S,orders:ORDERS,days:Object.values(DAYS),invoices:Object.values(INVOICES)};
-  const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
+  const blob=new Blob([JSON.stringify(backupPayload(),null,1)],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);a.download="ventes-ligne-backup-"+todayStr()+".json";a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);
@@ -845,25 +879,146 @@ $("btnBackup").onclick=()=>{
 $("btnRestore").onclick=()=>$("fileRestore").click();
 $("fileRestore").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
-  try{
-    const data=JSON.parse(await f.text());
-    if(data.app!=="kouunn-ventes-ligne")throw 0;
-    for(const o of data.orders||[]){
-      const i=ORDERS.findIndex(x=>x.id===o.id);
-      if(i>=0)ORDERS[i]=o;else ORDERS.push(o);
-      await put("orders",o);
-    }
-    for(const d of data.days||[]){DAYS[d.date]=d;await put("days",d);}
-    for(const v of data.invoices||[]){INVOICES[v.no]=v;await put("invoices",v);}
-    if(data.settings){
-      S.nextSeq=Math.max(S.nextSeq,data.settings.nextSeq||1);
-      ["name","form","addr","siret","tva","rcs","footer","prefix"].forEach(k=>{if(!S[k]&&data.settings[k])S[k]=data.settings[k];});
-      await saveS();
-    }
-    loadSettingsToUI();renderAll();toast("导入合并完成");
-  }catch(_){toast("文件格式不对");}
+  try{await mergeBackup(JSON.parse(await f.text()));toast("导入合并完成");driveTouch();}
+  catch(_){toast("文件格式不对");}
   e.target.value="";
 };
+
+/* ================= Google Drive 自动备份（照 KOUUNN仓 接法，键加 vl_ 前缀） ================= */
+const DRIVE_CLIENT_ID='783857816433-953oblm2al9098nf76fdbavqneb3otuc.apps.googleusercontent.com';
+const DRIVE_FILE='ventes_backup.json', DRIVE_FOLDER='KOUUNN仓';
+const DK={on:'vl_driveEnabled',fid:'vl_driveFileId',last:'vl_driveLast',tok:'vl_driveTok',hint:'vl_driveHint',folder:'vl_driveFolder',acct:'vl_driveAcct'};
+const driveAuthLocked=()=>Date.now()-driveAuthAt<20000;
+let driveAcctChecked=false;
+/* 每次拿到token核对账号：换了账号就清掉旧账号下的文件/文件夹引用，重新传 */
+async function driveCheckAcct(){
+  try{const r=await dfetch('https://www.googleapis.com/drive/v3/about?fields=user');if(!r.ok)return;
+    const j=await r.json();const e=j.user&&j.user.emailAddress;if(!e)return;
+    const old=localStorage.getItem(DK.acct)||'';localStorage.setItem(DK.hint,e);
+    if(old&&old!==e){localStorage.removeItem(DK.folder);localStorage.removeItem(DK.fid);toast('Drive 账号已从 '+old+' 换成 '+e+'，台账将传到新账号');}
+    localStorage.setItem(DK.acct,e);
+  }catch(_){}
+}
+let driveToken=null,driveTokenClient=null,driveBusy=false,driveAuthAt=0,driveTimer=null;
+const drEnabled=()=>localStorage.getItem(DK.on)==='1';
+function driveLoadTok(){try{const o=JSON.parse(localStorage.getItem(DK.tok)||'null');if(o&&o.t&&o.exp>Date.now()){driveToken=o.t;return true;}}catch(_){}localStorage.removeItem(DK.tok);return false;}
+function driveClearTok(){driveToken=null;localStorage.removeItem(DK.tok);}
+function driveStatus(txt,bad){
+  const s=$("drStatus");if(!s)return;
+  s.textContent=txt;s.style.color=bad?"var(--danger)":"";
+  $("btnDrive").textContent=drEnabled()?"关闭自动备份":"连接 Drive · 开启自动备份";
+  $("btnDriveSwitch").style.display=drEnabled()?"block":"none";
+  const d=$("driveDot");if(d){d.style.opacity=(drEnabled()&&driveToken)?"1":".4";d.style.color=bad?"#F0977F":(drEnabled()&&driveToken?"#8FC1E8":"");}
+}
+function loadGIS(cb){
+  if(window.google&&window.google.accounts){cb();return;}
+  const sc=document.createElement('script');sc.src='https://accounts.google.com/gsi/client';
+  sc.onload=cb;sc.onerror=()=>driveStatus("Google 登录脚本加载失败（网络？）",1);
+  document.head.appendChild(sc);
+}
+function driveInit(interactive){
+  if(!interactive&&driveLoadTok()){if(driveAcctChecked)driveUpload();else{driveAcctChecked=true;driveCheckAcct().then(driveUpload);}return;}
+  if(!interactive&&driveAuthLocked())return;
+  driveAuthAt=Date.now();
+  loadGIS(()=>{try{
+    if(!driveTokenClient)driveTokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:DRIVE_CLIENT_ID,scope:'https://www.googleapis.com/auth/drive.file',
+      callback:async resp=>{
+        driveAuthAt=0;
+        if(resp&&resp.access_token){
+          driveToken=resp.access_token;
+          const ttl=(Number(resp.expires_in)||3600)-60;
+          localStorage.setItem(DK.tok,JSON.stringify({t:driveToken,exp:Date.now()+ttl*1000}));
+          localStorage.setItem(DK.on,'1');
+          await driveCheckAcct();driveAcctChecked=true;
+          driveStatus("已连接");driveUpload();
+        }else driveStatus("未授权",1);
+      }});
+    const hint=localStorage.getItem(DK.hint)||'';
+    const opt={prompt:interactive==='switch'?'select_account':(interactive?'consent':'')};if(hint&&interactive!=='switch')opt.hint=hint;
+    driveTokenClient.requestAccessToken(opt);
+  }catch(e){driveAuthAt=0;driveStatus("未授权",1);}});
+}
+class DriveAuthErr extends Error{}
+async function dfetch(url,opt,ms){
+  opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+driveToken},opt.headers||{});
+  const ac=new AbortController();opt.signal=ac.signal;const tm=setTimeout(()=>ac.abort(),ms||25000);
+  let r;try{r=await fetch(url,opt);}catch(e){throw new Error(e.name==='AbortError'?'timeout':'network');}finally{clearTimeout(tm);}
+  if(r.status===401)throw new DriveAuthErr('401');return r;
+}
+async function errText(r){try{const j=await r.json();return (j.error&&j.error.message)||String(r.status);}catch(_){return String(r.status);}}
+async function driveFindByName(name,parent){
+  let q="name='"+name.replace(/'/g,"\\'")+"' and trashed=false";if(parent)q+=" and '"+parent+"' in parents";
+  const r=await dfetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&pageSize=10');
+  if(!r.ok)return null;const j=await r.json();return (j.files&&j.files[0])?j.files[0].id:null;
+}
+async function driveFolderId(){
+  let id=localStorage.getItem(DK.folder)||'';if(id)return id;
+  id=await driveFindByName(DRIVE_FOLDER);
+  if(!id){const r=await dfetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:DRIVE_FOLDER,mimeType:'application/vnd.google-apps.folder'})});
+    if(!r.ok)throw new Error('folder '+await errText(r));id=(await r.json()).id;}
+  localStorage.setItem(DK.folder,id);return id;
+}
+async function driveMultipart(meta,blob,mime,fid){
+  const boundary='vlB'+Date.now();
+  const body=new Blob(['--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n--'+boundary+'\r\nContent-Type: '+mime+'\r\n\r\n',blob,'\r\n--'+boundary+'--']);
+  const url=fid?'https://www.googleapis.com/upload/drive/v3/files/'+fid+'?uploadType=multipart':'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+  const r=await dfetch(url,{method:fid?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+boundary},body},90000);
+  if(!r.ok)throw new Error('upload '+await errText(r));return (await r.json()).id;
+}
+async function driveUpload(){
+  if(!drEnabled()||!driveToken||driveBusy)return;driveBusy=true;
+  try{
+    driveStatus("上传中…");
+    const folder=await driveFolderId();
+    const json=JSON.stringify(backupPayload());
+    let fid=localStorage.getItem(DK.fid)||'';
+    if(!fid){fid=await driveFindByName(DRIVE_FILE,folder)||'';if(fid)localStorage.setItem(DK.fid,fid);}
+    let newId;
+    const meta=fid?{name:DRIVE_FILE,mimeType:'application/json'}:{name:DRIVE_FILE,mimeType:'application/json',parents:[folder]};
+    try{newId=await driveMultipart(meta,new Blob([json],{type:'application/json'}),'application/json',fid);}
+    catch(e){if(!fid||!/not found/i.test(e.message))throw e;localStorage.removeItem(DK.fid);
+      newId=await driveMultipart({name:DRIVE_FILE,mimeType:'application/json',parents:[folder]},new Blob([json],{type:'application/json'}),'application/json','');}
+    if(newId)localStorage.setItem(DK.fid,newId);
+    localStorage.setItem(DK.last,String(Date.now()));
+    driveStatus("已备份 · "+new Date().toTimeString().slice(0,5));
+  }catch(e){
+    if(e instanceof DriveAuthErr){driveClearTok();driveBusy=false;driveInit(false);return;}
+    driveStatus("Drive 出错: "+(e.message||'?'),1);
+  }
+  driveBusy=false;
+}
+/* 任何数据变动后调用：3秒内合并成一次上传 */
+function driveTouch(){if(!drEnabled())return;clearTimeout(driveTimer);driveTimer=setTimeout(()=>driveInit(false),3000);}
+async function driveRestore(){
+  if(!driveToken&&!driveLoadTok()){toast("先在设置里连接 Drive");switchTab("settings");return;}
+  try{
+    toast("正在从 Drive 读取…");
+    const folder=await driveFolderId();
+    const fid=localStorage.getItem(DK.fid)||await driveFindByName(DRIVE_FILE,folder);
+    if(!fid){toast("Drive 上还没有备份文件");return;}
+    const r=await dfetch('https://www.googleapis.com/drive/v3/files/'+fid+'?alt=media',null,60000);
+    if(!r.ok)throw new Error(await errText(r));
+    const data=await r.json();
+    if(!confirm(`Drive 备份：${(data.orders||[]).length} 单，导出时间 ${(data.exportedAt||'').slice(0,16).replace('T',' ')}\n合并进本机？`))return;
+    await mergeBackup(data);localStorage.setItem(DK.fid,fid);toast("✅ 已从 Drive 恢复合并");
+  }catch(e){if(e instanceof DriveAuthErr){driveClearTok();driveInit(true);return;}toast("❌ Drive 出错: "+(e.message||'?'));}
+}
+$("btnDrive").onclick=()=>{
+  if(!drEnabled()||!driveToken)driveInit(true);
+  else if(confirm("关闭自动备份？Drive 上已有的备份文件不会删。")){localStorage.setItem(DK.on,'0');driveClearTok();driveStatus("已关闭");}
+};
+$("btnDriveSwitch").onclick=()=>{
+  if(!confirm("换一个 Google 账号？台账会重新传到新账号（旧账号里的不删）。"))return;
+  driveClearTok();localStorage.removeItem(DK.hint);localStorage.setItem(DK.on,'1');driveAcctChecked=false;driveInit('switch');
+};
+document.addEventListener('visibilitychange',()=>{
+  if(!drEnabled()||driveAuthLocked())return;
+  if(document.visibilityState==='visible'){if(driveToken||driveLoadTok())driveUpload();else driveInit(false);}
+  else if(driveToken)driveUpload();
+});
+$("btnDriveRestore").onclick=driveRestore;
 
 /* ================= settings ================= */
 function loadSettingsToUI(){
@@ -877,7 +1032,7 @@ $("btnSaveSettings").onclick=async()=>{
   S.name=$("sName").value.trim();S.form=$("sForm").value.trim();S.addr=$("sAddr").value.trim();
   S.siret=$("sSiret").value.trim();S.tva=$("sTva").value.trim();S.rcs=$("sRcs").value.trim();
   S.footer=$("sFooter").value;
-  await saveS();toast("已保存");
+  await saveS();toast("已保存");driveTouch();
 };
 $("sPrefix").onchange=async()=>{S.prefix=$("sPrefix").value.trim()||"WEB";await saveS();};
 $("sNextSeq").onchange=async()=>{S.nextSeq=Math.max(1,parseInt($("sNextSeq").value)||1);await saveS();};
@@ -912,6 +1067,7 @@ function renderAll(){renderToday();renderHistory();renderExportSummary();}
   $("hdrSub").textContent="网单 TVA 日结 · 发票 · "+todayStr();
   loadSettingsToUI();
   renderAll();
+  if(drEnabled()){driveStatus(localStorage.getItem(DK.last)?"已备份 · "+new Date(+localStorage.getItem(DK.last)).toTimeString().slice(0,5):"已开启");setTimeout(()=>driveInit(false),1500);}else driveStatus("未连接");
 })();
 </script>
 </body>
